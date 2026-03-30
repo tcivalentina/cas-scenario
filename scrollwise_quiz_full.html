@@ -580,6 +580,12 @@ function choose(i) {
   document.getElementById('modal-positioner').classList.add('open');
   document.getElementById('hint').classList.add('open');
 
+  // Scroll so the middle of the quiz shell is centred in the viewport
+  const shell = document.getElementById('quiz-shell');
+  const shellRect = shell.getBoundingClientRect();
+  const shellMidY = window.scrollY + shellRect.top + shellRect.height / 2;
+  window.scrollTo({ top: shellMidY - window.innerHeight / 2, behavior: 'smooth' });
+
   document.getElementById('btn-try').style.display = '';
   const nextBtn = document.getElementById('btn-next');
   nextBtn.style.display = '';
