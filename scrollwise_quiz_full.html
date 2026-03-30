@@ -617,11 +617,13 @@ function tryAgain() {
 
 function prevQuestion() {
   if (current > 0) { current--; renderQuestion(current); }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function nextQuestion() {
   current++;
   if (current >= TOTAL) { showCompleted(); } else { renderQuestion(current); }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function showCompleted() {
