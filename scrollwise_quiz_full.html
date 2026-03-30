@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScrollWise Quiz</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      background: #f5f6fa;
+      padding: 2rem 1.5rem;
+    }
+
+    .quiz-shell {
+      position: relative;
+      max-width: 780px;
+      margin: 0 auto;
+    }
+
+    .quiz-wrap {
+      background: #fff;
+      border-radius: 14px;
+      width: 100%;
+      padding: 2rem 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      min-height: 520px;
+    }
+
+    .progress-bar-wrap { margin-bottom: 1.5rem; }
+
+    .progress-label {
+      font-size: 12px;
+      color: #3a5294;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 5px;
+      background: #e0e3f0;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #3a5294;
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    .context-block {
+      font-size: 15px;
+      line-height: 1.75;
+      color: #262262;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1.5px solid #e0e3f0;
+    }
+
+    .context-block p + p { margin-top: 0.75rem; }
+    .context-block ul { margin: 0.75rem 0 0 1.25rem; }
+    .context-block ul li { margin-bottom: 0.4rem; }
+
+    .question {
+      font-size: 17px;
+      font-weight: 600;
+      color: #3a5294;
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+
+    .option-btn {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: #fff;
+      border: 1.5px solid #c8cde6;
+      border-radius: 10px;
+      padding: 14px 18px;
+      cursor: pointer;
+      text-align: left;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 15px;
+      color: #262262;
+      width: 100%;
+      transition: border-color 0.18s, background 0.18s;
+    }
+
+    .option-btn:hover:not(:disabled) {
+      border-color: #3a5294;
+      background: rgba(58, 82, 148, 0.08);
+      color: #262262;
+    }
+
+    .option-btn:disabled { cursor: default; }
+
+    .option-btn .letter {
+      min-width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #eef0f9;
+      border: 1.5px solid #c8cde6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      color: #3a5294;
+      flex-shrink: 0;
+    }
+
+    .option-btn .label { line-height: 1.4; color: #262262; }
+
+    .bottom-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 1.25rem;
+      border-top: 1.5px solid #e0e3f0;
+      margin-top: auto;
+    }
+
+    .btn-try {
+      padding: 9px 20px;
+      border-radius: 8px;
+      border: 1.5px dashed #3a5294;
+      background: #fff;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: #3a5294;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-try:hover { background: rgba(58, 82, 148, 0.06); }
+
+    .btn-next {
+      padding: 9px 20px;
+      border-radius: 8px;
+      border: none;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: #fff;
+      cursor: pointer;
+      background: #3a5294;
+      transition: opacity 0.15s;
+    }
+    .btn-next:hover { opacity: 0.85; }
+    .btn-next:disabled { opacity: 0.4; cursor: default; }
+
+    .btn-back {
+      padding: 9px 20px;
+      border-radius: 8px;
+      border: 1.5px solid #c8cde6;
+      background: #fff;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: #888;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-back:hover { background: #f2f4fb; color: #3a5294; }
+
+    /* Overlay contained within quiz-shell — no position:fixed */
+    .overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(30, 30, 60, 0.45);
+      z-index: 10;
+      border-radius: 14px;
+      cursor: pointer;
+    }
+    .overlay.open { display: block; }
+
+    .modal-positioner {
+      position: absolute;
+      inset: 0;
+      z-index: 11;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .modal-positioner.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1.25rem 1.5rem;
+      max-width: 460px;
+      width: calc(100% - 3rem);
+      pointer-events: all;
+      cursor: default;
+      animation: pop 0.22s cubic-bezier(.4,1.4,.6,1) both;
+    }
+
+    @keyframes pop {
+      from { transform: scale(0.88); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+
+    .modal-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 0.75rem;
+    }
+
+    .modal-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .modal-icon.correct { background: #e6f9ed; }
+    .modal-icon.wrong   { background: #fdeaea; }
+
+    .modal-heading { font-size: 16px; font-weight: 700; }
+    .modal-heading.correct { color: #1a8a42; }
+    .modal-heading.wrong   { color: #c0392b; }
+
+    .modal-body {
+      font-size: 14px;
+      line-height: 1.65;
+      color: #262262;
+    }
+
+    .hint {
+      position: absolute;
+      bottom: 1rem;
+      left: 0; right: 0;
+      text-align: center;
+      font-size: 12px;
+      color: rgba(255,255,255,0.8);
+      z-index: 12;
+      pointer-events: none;
+      display: none;
+      font-family: Helvetica, Arial, sans-serif;
+    }
+    .hint.open { display: block; }
+
+    .completed {
+      text-align: center;
+      padding: 3rem 1rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .completed-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #e6f9ed;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 0.5rem;
+    }
+
+    .completed h2 { font-size: 20px; font-weight: 700; color: #3a5294; }
+    .completed p { font-size: 15px; color: #262262; line-height: 1.6; max-width: 420px; }
+
+    .btn-restart {
+      margin-top: 0.5rem;
+      padding: 10px 24px;
+      border-radius: 8px;
+      border: none;
+      background: #3a5294;
+      color: #fff;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-restart:hover { opacity: 0.85; }
+  </style>
+</head>
+<body>
+
+<div class="quiz-shell" id="quiz-shell">
+
+  <div class="quiz-wrap">
+    <div class="progress-bar-wrap">
+      <div class="progress-label" id="progress-label">Question 1 of 13</div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div id="question-area"></div>
+
+    <div class="bottom-bar">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn-back" id="btn-back" onclick="prevQuestion()">&larr; Back</button>
+        <button class="btn-try" id="btn-try" onclick="tryAgain()">Try again</button>
+      </div>
+      <button class="btn-next" id="btn-next" onclick="nextQuestion()">Next question &rarr;</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay" onclick="closeOverlay()"></div>
+
+  <div class="modal-positioner" id="modal-positioner">
+    <div class="modal">
+      <div class="modal-top">
+        <div class="modal-icon" id="modal-icon"></div>
+        <div class="modal-heading" id="modal-heading"></div>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Click anywhere outside to close</div>
+
+</div>
+
+<script>
+const questions = [
+  {
+    context: `A group of researchers developed ScrollWise, a school-based program in Australia to help middle school students prevent and address mental health challenges related to social media use. The program focuses on digital literacy, critical reflection about social media, emotional regulation, peer dynamics, and help-seeking.\n\nIn Canada there are growing concerns about youth mental health and social media use. Schools, school districts, and governments are looking for programs to address these issues and are actively looking into adopting and adapting ScrollWise for Canadian middle schools.`,
+    question: `Is this an example of push, pull, or both?`,
+    options: ['Push', 'Pull', 'Both'],
+    correct: 1,
+    feedback: [
+      { heading: 'Not exactly', body: 'This would be a push example if the researchers were actively promoting or disseminating ScrollWise to Canada. In this scenario, the interest is coming from Canadian schools and systems, not from the developers pushing it outward.' },
+      { heading: 'You got it!', body: 'This is a pull example because the demand is coming from the receiving context. Canadian schools, districts, and governments are seeking out programs to address a locally identified need and are interested in adopting and adapting ScrollWise.' },
+      { heading: 'Not yet (maybe soon)', body: 'This would be "both" if the researchers were also intentionally engaging Canadian partners or scaling the program internationally. Based on the description, the primary driver is demand rather than the developers pushing to bring the program to Canada.' }
+    ]
+  },
+  {
+    context: `To support implementation of ScrollWise internationally, the researchers decide to establish a non-profit organization dedicated to implementation support. To determine which implementation support model would work best, the non-profit reached out to the schools that implemented during the initial rollout and other early adopting schools. Schools shared information about what kinds of supports were most helpful`,
+    contextList: ['When they first start, schools want very structured training and a detailed implementation guide for the local implementation teams', 'As implementation progresses, schools appreciated regular opportunities to connect with other schools, shared experiences, challenges, and adaptations.', 'Schools express interest in continuing to get access to tools, resources, and a space to exchange ideas.'],
+    question: `Which implementation support model best fits these needs?`,
+    options: ['Technical Assistance Model', 'Learning Collaborative Model', 'Systems change model'],
+    correct: 1,
+    feedback: [
+      { heading: 'Partially fits', body: 'This model aligns with the need for structured training and detailed implementation guides early on. However, technical assistance is typically more focused on hands-on support from implementation specialists. The schools are asking for lighter-touch support predominantly from peers.' },
+      { heading: 'You got it!', body: 'This model fits best because it combines early structured support (e.g., training, guides) with ongoing, relationship-based learning. Schools value learning from one another, sharing experiences, problem-solving together, and adapting practices over time—key features of learning collaboratives.' },
+      { heading: 'Not yet (maybe in the future)', body: 'Systems change models focus on shifting policies, funding structures, and governance across sectors. While this may become relevant later, the current needs center on school-level implementation support and peer learning rather than system-wide transformation.' }
+    ]
+  },
+  {
+    context: `The ScrollWise program was designed for the Australian school context. While the WHY, the goals, the principles, and the delivery are appropriate in Canada, there are differences that need to be addressed. Australia adopted government policies about youth social media use that are different than in Canada. There are also some cultural differences in social media use expectations for parents, youth, and teachers.\n\nBased on early discussions, the team decides to expand the parent component to reinforce learning at home and support consistent messaging across school and family contexts. This means expanding the role of parents (one of the WHOs), by including more parent WHATs. Specifically, parents/caregivers are being asked to:`,
+    contextList: ['Engage in guided conversations about social media use', 'Reinforce shared language and concepts from the program at home', 'Support healthy boundaries and routines related to social media (e.g., no phones in bedrooms overnight)', 'Recognize signs of distress and know when/how to seek support'],
+    contextAfterList: `The non-profit wants to plan the types of adaptations that will be needed to account for the expansion of the parent role, the contextual differences in Canada, and the slight language differences between Canadian and Australian English (e.g., colloquial terms, jargon, dialects, etc).`,
+    question: `The group comes to you for advice and asks which types of adaptations will be most important?`,
+    options: ['Adapting delivery format only', 'Adapting language, metaphors, and visuals AND content and concepts', 'Adapting principles and functions'],
+    correct: 1,
+    feedback: [
+      { heading: "This is a start, but doesn't get at the deeper adaptation needs", body: 'Delivery changes can help with feasibility, but they do not address deeper differences in policy context, culture, or the expanded role of parents in the program.' },
+      { heading: 'You got it!', body: 'This option fits best because the team is expanding the role of parents and what they are expected to do. Addressing Canadian policy differences, cultural expectations, and communication norms will also require adaptations to the content, while maintaining the underlying principles.' },
+      { heading: 'Not exactly', body: 'The WHY, goals, principles, and core functions are seen as appropriate for the Canadian context.' }
+    ]
+  },
+  {
+    context: `Now the non-profit is trying to figure out how to roll out ScrollWise implementation across Canadian schools. They are debating between two options: 1) scale immediately and roll it out to any school that reaches out; 2) conduct readiness assessments and only implement in ready schools.`,
+    question: `You propose:`,
+    options: ['Scale immediately and roll it out to any school that reaches out', 'Conduct readiness assessments and only implement in ready schools', 'An alternative option'],
+    correct: 2,
+    feedback: [
+      { heading: 'This might not be the best next move', body: 'Scaling immediately might maximize reach, but it increases the risk of poor implementation, especially before having some experiencing with implementing an adapted version of the program in Canada.' },
+      { heading: 'This approach could support implementation, but negatively impacts equity', body: 'Prioritizing ready sites might make it more likely that sites have early success, but it can exclude schools that could benefit most and may reinforce existing inequities if readiness is treated as a gatekeeper rather than something that can be built.' },
+      { heading: 'You got it! Proposing an alternative is a good option', body: 'For example, you could propose they implement in phases: start with a small group of ready schools as learning sites, while offering readiness-building supports (e.g., leadership engagement, capacity-building, light-touch preparation) to less-ready schools so they can participate later. This balances progress and equity.' }
+    ]
+  },
+  {
+    context: `Given what you know about scaling and wanting to consider equity, you instead suggest that they strategically select some sites based on a variety of factors set them up for future scale success. You suggest having a diversity of contexts (e.g., urban, suburban, and rural; schools with different levels of racial and ethnic diversity…). You also suggest they conduct readiness assessments and include schools with a variety of levels of readiness to better understand how to support schools that are less ready.\n\nThey decide to move forward in 8 schools. As they get started, they encounter some contextual challenges. The non-profit reaches back out to you for advice.\n\nIn School A, there have been several instances of self-harm by students. School leadership and teachers are very motivated to implement ScrollWise.`,
+    part: 'Part 1/5',
+    question: `Where would you map this contextual facilitator?`,
+    options: ['Implementation support infrastructure', 'Socio-political and economic conditions', 'Tension for change'],
+    correct: 2,
+    feedback: [
+      { heading: 'Not exactly', body: 'Implementation support infrastructure refers to the structures, roles, resources available to support implementation (e.g., dedicated staff, coaching, data systems). While the school may be motivated, the scenario does not describe existing supports or infrastructure to help with implementation.' },
+      { heading: 'Not exactly', body: "Socio-political and economic conditions refers to broader system-level factors (e.g., policies, recessions...). This scenario is about what's happening at the school rather than reflecting wider political or economic conditions." },
+      { heading: 'You got it!', body: 'The incidents of self-harm have created a sense of urgency and motivation among leadership and teachers to take action.' }
+    ]
+  },
+  {
+    context: `As they start implementing the program they realize the school does not have a clear policy or protocol for how disclosures related to self-harm during classroom activities should be handled. There is no clear pathway for what to do and where to send students for help.`,
+    part: 'Part 2/5',
+    question: `Where would you map this contextual challenge (not the facilitator) has arisen?`,
+    options: ['Leadership capacities', 'Policies, laws, and decision-making environment', 'External pressure'],
+    correct: 1,
+    feedback: [
+      { heading: 'Not exactly', body: 'Leadership capacity relates to vision-setting, decision-making, and active support for implementation. While leaders may need to be involved in fixing this issue, the barrier is not a lack of leadership commitment or skill.' },
+      { heading: 'You got it!', body: 'This barrier is about missing or unclear organizational policies —specifically protocols and referral pathways for responding to student disclosures.' },
+      { heading: 'Not exactly', body: 'External pressure refers to influences like pressure from the public or organizations. This barrier is about internal school processes.' }
+    ]
+  },
+  {
+    context: `To address this barrier related to organizational policies, in discussions with the team, you decide to pick a strategy with the purpose of improving or restructuring the environment or organization.`,
+    part: 'Part 3/5',
+    question: `Based on that decision, as a group, you decide to:`,
+    options: ['Change policies', 'Do a team debriefing', 'Incorporate goal setting'],
+    correct: 0,
+    feedback: [
+      { heading: 'You got it!', body: 'This directly addresses the lack of clear protocols and policies by changing the policies to create a defined process for responding to disclosures.' },
+      { heading: 'Helpful, but not enough', body: 'Debriefing can support reflection and learning, but on its own it address the structural issues.' },
+      { heading: 'Not exactly', body: 'Goal setting supports motivation and focus, but it does not address the underlying structural issue.' }
+    ]
+  },
+  {
+    context: `As part of this work, the team realizes that managing disclosures cannot be addressed by the school alone. When they reach out to community organizations, it becomes clear that there is limited capacity in the broader system to address youth mental health needs. Local mental health services are stretched thin and waitlists are long.`,
+    part: 'Part 4/5',
+    question: `Which system-level contextual factor is this related to?`,
+    options: ['Mission alignment of the proposed change', 'Staffing levels', 'Reimbursement process'],
+    correct: 1,
+    feedback: [
+      { heading: 'Not exactly.', body: 'The barrier is not whether youth mental health aligns with organizational missions, but whether the broader system has the capacity to support youth.' },
+      { heading: 'You got it!', body: 'Limited organizational capacity and long waitlists reflect staffing issues across the system.' },
+      { heading: 'Not exactly.', body: "The scenario doesn't describe any funding mechanisms or payment structures are driving the capacity limitations described. While these might be influencing the system, this isn't the primary barrier being described." }
+    ]
+  },
+  {
+    context: `Through discussions with community organizations, the team is introduced to a parent advocacy group pushing for improved youth mental health resources in the community. While the group is not formally connected to ScrollWise, they share overlapping goals. The team brainstorms what to do about the parent advocacy group.`,
+    part: 'Part 5/5',
+    question: `You suggest:`,
+    options: ['Keeping the group separate to avoid complicating implementation', 'Partnering with the group to align efforts and support broader system change', 'Asking the group to formally adopt ScrollWise'],
+    correct: 1,
+    feedback: [
+      { heading: 'Not a bad choice, but misses an opportunity.', body: 'Keeping the groups separate misses an opportunity to build alignment and leverage existing momentum that could enhance implementation and sustainability.' },
+      { heading: 'You got it!', body: 'Partnering can help you both amplify impact and start addressing system-level barriers.' },
+      { heading: 'Not exactly.', body: "Because the advocacy group's role is to influence the system it doesn't make sense for them to formal adopt ScrollWise." }
+    ]
+  },
+  {
+    context: `At another point, the team reaches out about a small rural school district is implementing the program across it's 4 middle schools. They realize there are different challenges across the different schools.\n\nIn one school, there is visible tension between teachers and leadership. Teachers are reluctant to raise concerns or ask questions, and decisions about implementation are made by leadership with little discussion or shared problem-solving.`,
+    part: 'Part 1/2',
+    question: `Which contextual factors is this related to?`,
+    options: ['Alignment, commitment, and relative priority (relative priority)', 'Norms, values, and beliefs (social/cultural norms and ideologies)', 'Psychological atmosphere (psychological safety)'],
+    correct: 2,
+    feedback: [
+      { heading: 'Not exactly.', body: 'This factor focuses on whether the program is seen as important and aligned with existing priorities. While alignment may be affected, this barrier is how people engage with each other.' },
+      { heading: 'Close, but not exactly', body: 'Underlying beliefs about hierarchy or decision-making may contribute, but the scenario emphasizes the interpersonal interactions rather than the underlying norms and values.' },
+      { heading: 'You got it!', body: "Teachers don't feel safe raising concerns, asking questions, or engaging in joint problem-solving. This describes teachers feeling a lack of psychological safety." }
+    ]
+  },
+  {
+    context: `At another point, the team reaches out about a small rural school district is implementing the program across it's 4 middle schools. They realize there are different challenges across the different schools.\n\nIn one school, there is visible tension between teachers and leadership. Teachers are reluctant to raise concerns or ask questions, and decisions about implementation are made by leadership with little discussion or shared problem-solving.`,
+    part: 'Part 2/2',
+    question: `As a group you explore which strategy purpose seems most appropriate and you decide to focus on:`,
+    options: ['Supporting collective decision-making and address power dynamics', 'Develop a competent workforce and staffing', 'Build knowledge and skills'],
+    correct: 0,
+    feedback: [
+      { heading: 'You got it!', body: 'Because the barrier is about psychological safety and whose voices are included, making strategies that redistribute power and create shared problem-solving can start to address some of these issues.' },
+      { heading: 'Not exactly', body: 'The barrier is not about competence or having enough staff, but about psychological safety.' },
+      { heading: 'Not exactly', body: "Teachers' reluctance to speak up is an issue about psychological safety and power imbalances, not gaps in knowledge or technical skill." }
+    ]
+  },
+  {
+    context: `In another school, parents in the community are pushing back against schools telling children how to use technology in their own homes and even the phone restrictions at the school.`,
+    part: 'Part 1/2',
+    question: `What type of contextual issues is this?`,
+    options: ['Socio-political and economic conditions (political and economic philosophy/ideology)', 'Communications', 'Norms, values and beliefs (Social and cultural norms and ideologies)'],
+    correct: 2,
+    feedback: [
+      { heading: 'Not exactly', body: "While broader ideologies might be influencing people's perspectives, the scenario describes community-level beliefs rather than system-level political or economic conditions." },
+      { heading: 'Not exactly', body: "This isn't a communication issue, but differences in people's values and beliefs." },
+      { heading: 'You got it!', body: "Parents' reactions are based on differing beliefs about parental authority, school boundaries, and appropriate norms around children's technology use." }
+    ]
+  },
+  {
+    context: `In another school, parents in the community are pushing back against schools telling children how to use technology in their own homes and even the phone restrictions at the school.`,
+    part: 'Part 2/2',
+    question: `What strategies could be used to address this barrier?`,
+    options: ['Educate parents about why their views are incorrect', 'Make adaptations to emphasize the skill-building aspects of ScrollWise and de-emphasize control over family practices', 'Remove the parent component entirely'],
+    correct: 1,
+    feedback: [
+      { heading: 'Not a good choice', body: 'Providing education when people have different values and beliefs can escalate issues.' },
+      { heading: 'Good idea', body: "Shifting the focus of the program to focus on youth skills and shared goals respects family autonomy while maintaining alignment with the program's principles." },
+      { heading: 'Not be best choice', body: "Removing the parent component might avoid the tension, but could change some of the core components of the program so that it's not longer effective." }
+    ]
+  }
+];
+
+const TOTAL = questions.length;
+let current = 0;
+let answered = false;
+
+function renderQuestion(idx) {
+  answered = false;
+  const q = questions[idx];
+  const letters = ['a', 'b', 'c'];
+
+  let contextHTML = q.context.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
+  contextHTML = '<p>' + contextHTML + '</p>';
+  if (q.contextList) {
+    contextHTML += '<ul>' + q.contextList.map(i => `<li>${i}</li>`).join('') + '</ul>';
+  }
+  if (q.contextAfterList) {
+    contextHTML += `<p style="margin-top:0.75rem">${q.contextAfterList}</p>`;
+  }
+
+  const partHTML = q.part
+    ? `<div style="display:inline-block;font-size:11px;font-weight:600;color:#3a5294;background:#eef0f9;border-radius:99px;padding:3px 10px;margin-bottom:0.75rem;letter-spacing:0.02em;">${q.part}</div>`
+    : '';
+
+  const optionsHTML = q.options.map((opt, i) => `
+    <button class="option-btn" onclick="choose(${i})">
+      <span class="letter">${letters[i].toUpperCase()}</span>
+      <span class="label">${opt}</span>
+    </button>
+  `).join('');
+
+  document.getElementById('question-area').innerHTML = `
+    <div class="context-block">${contextHTML}</div>
+    ${partHTML}
+    <div class="question">${q.question}</div>
+    <div class="options">${optionsHTML}</div>
+  `;
+
+  const pct = (idx / TOTAL) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = `Question ${idx + 1} of ${TOTAL}`;
+
+  const backBtn = document.getElementById('btn-back');
+  backBtn.style.display = idx === 0 ? 'none' : '';
+
+  document.getElementById('btn-try').style.display = 'none';
+  const nextBtn = document.getElementById('btn-next');
+  nextBtn.style.display = 'none';
+  nextBtn.disabled = true;
+  nextBtn.textContent = idx === TOTAL - 1 ? 'Finish \u2192' : 'Next question \u2192';
+
+  closeOverlay();
+}
+
+function choose(i) {
+  if (answered) return;
+  answered = true;
+
+  const q = questions[current];
+  const isCorrect = i === q.correct;
+  const f = q.feedback[i];
+
+  const btns = document.querySelectorAll('.option-btn');
+  btns.forEach(b => b.disabled = true);
+
+  const letters = document.querySelectorAll('.option-btn .letter');
+  letters[i].style.background  = isCorrect ? '#e6f9ed' : '#fdeaea';
+  letters[i].style.borderColor = isCorrect ? '#1a8a42' : '#c0392b';
+  letters[i].style.color       = isCorrect ? '#1a8a42' : '#c0392b';
+  btns[i].style.borderColor    = isCorrect ? '#1a8a42' : '#c0392b';
+  btns[i].style.background     = isCorrect ? '#f4fdf7' : '#fdf4f4';
+
+  const icon = document.getElementById('modal-icon');
+  icon.className = 'modal-icon ' + (isCorrect ? 'correct' : 'wrong');
+  icon.innerHTML = isCorrect
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#1a8a42" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="#c0392b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  const heading = document.getElementById('modal-heading');
+  heading.className = 'modal-heading ' + (isCorrect ? 'correct' : 'wrong');
+  heading.textContent = f.heading;
+  document.getElementById('modal-body').textContent = f.body;
+
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('modal-positioner').classList.add('open');
+  document.getElementById('hint').classList.add('open');
+
+  document.getElementById('btn-try').style.display = '';
+  const nextBtn = document.getElementById('btn-next');
+  nextBtn.style.display = '';
+  nextBtn.disabled = false;
+}
+
+function closeOverlay() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('modal-positioner').classList.remove('open');
+  document.getElementById('hint').classList.remove('open');
+}
+
+function tryAgain() {
+  answered = false;
+  document.querySelectorAll('.option-btn').forEach(b => {
+    b.disabled = false;
+    b.style.borderColor = '';
+    b.style.background = '';
+  });
+  document.querySelectorAll('.option-btn .letter').forEach(l => {
+    l.style.background = '';
+    l.style.borderColor = '';
+    l.style.color = '';
+  });
+  document.getElementById('btn-try').style.display = 'none';
+  document.getElementById('btn-next').style.display = 'none';
+  closeOverlay();
+}
+
+function prevQuestion() {
+  if (current > 0) { current--; renderQuestion(current); }
+}
+
+function nextQuestion() {
+  current++;
+  if (current >= TOTAL) { showCompleted(); } else { renderQuestion(current); }
+}
+
+function showCompleted() {
+  document.getElementById('progress-fill').style.width = '100%';
+  document.getElementById('progress-label').textContent = 'Completed!';
+  document.getElementById('question-area').innerHTML = `
+    <div class="completed">
+      <div class="completed-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#1a8a42" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h2>You've completed the quiz!</h2>
+      <p>Well done working through all 13 questions. You can restart to review the material again.</p>
+      <button class="btn-restart" onclick="restartQuiz()">Restart quiz</button>
+    </div>
+  `;
+  document.getElementById('btn-try').style.display = 'none';
+  document.getElementById('btn-next').style.display = 'none';
+}
+
+function restartQuiz() { current = 0; renderQuestion(0); }
+
+renderQuestion(0);
+</script>
+
+</body>
+</html>
